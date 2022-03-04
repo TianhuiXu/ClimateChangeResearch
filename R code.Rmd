@@ -1,0 +1,162 @@
+---
+title: "Data-Driven Research"
+output: html_notebook
+---
+```{r}
+library(readr)
+# import the dataset and examine it
+howe_data <- read_csv("howe-2016-data.csv")
+head(howe_data)
+```
+```{r}
+# examine the scales of data
+unique(howe_data$GeoType)
+# national: US (1)
+# state (51)
+# county (3142)
+# cd113: congressional district (435)
+# CBSA: Core-based statistical area (916)
+```
+```{r}
+# filter the data regarding scales
+national <- howe_data[howe_data$GeoType=='National',]
+county <- howe_data[howe_data$GeoType=='County',]
+cd <- howe_data[howe_data$GeoType=='cd113',]
+state <- howe_data[howe_data$GeoType=='State',]
+cbsa <- howe_data[howe_data$GeoType=='CBSA',]
+```
+
+```{r}
+# groups column names into vectors
+pol_pref <- c('CO2limits', 'regulate', 'supportRPS', 'fundrenewables')
+pol_pref_o <- c('CO2limitsOppose', 'regulateOppose', 'supportRPSOppose', 'fundrenewablesOppose')
+belief <- c('happening', 'human', 'consensus')
+belief_o <- c('happeningOppose', 'humanOppose', 'consensusOppose', 'trustclimsciSSTOppose')
+risk <- c('worried', 'personal', 'harmUS', 'devharm', 'futuregen', 'timing', 'harmplants')
+risk_o <- c('worriedOppose', 'personalOppose', 'harmUSOppose', 'devharmOppose', 'futuregenOppose', 'timingOppose', 'harmplantsOppose')
+behavior <- c('discuss', 'mediaweekly')
+behavior_o <- c('discussOppose', 'mediaweeklyOppose')
+pol_bel <- c(pol_pref, belief)
+
+all <- c(pol_pref, belief, risk, behavior)
+all_o <- c(pol_pref_o, belief_o, risk_o, behavior_o)
+```
+
+
+```{r}
+library(dplyr)
+library(corrgram)
+
+# mutate county level data to include different columns
+
+county_all <- 
+county %>%
+  select(all_of(all))
+
+county_all_o <- 
+county %>%
+  select(all_of(all_o))
+
+county_p <-
+county %>%
+  select(all_of(c(pol_pref, pol_pref_o)))
+
+county_f <-
+county %>%
+  select(all_of(c('discuss', 'happening', 'human', 'consensus')))
+```
+```{r}
+# explore correlation with all columns in county
+all_county = cor(county_all)
+round(all_county, 2)
+```
+```{r}
+corrgram(all_county, order = NULL, lower.panel = panel.shade, upper.panel = NULL)
+```
+
+
+```{r}
+# mutate state level data
+state_all <- 
+state %>%
+  select(all_of(all))
+
+state_all_o <- 
+state %>%
+  select(all_of(all_o))
+```
+```{r}
+# explore correlation in all state data
+all_state = cor(state_all)
+round(all_state, 2)
+```
+
+```{r}
+corrgram(all_state, order = NULL, lower.panel = panel.shade, upper.panel = NULL)
+```
+
+
+```{r}
+# rename the column to match the usmap library
+names(state)[names(state) == 'GeoName'] <- 'state'
+```
+```{r, fig.width = 6, fig.height = 4}
+library(usmap)
+
+# Color maps with data
+plot_usmap(data = state, values = "discuss", labels = TRUE, label_color = "white")
+plot_usmap(data = state, values = "mediaweekly", labels = TRUE, label_color = "white")
+plot_usmap(data = state, values = "happening", labels = TRUE, label_color = "white")
+plot_usmap(data = state, values = "happeningOppose", labels = TRUE, label_color = "white")
+# plot_usmap(data = state, values = "worried", labels = TRUE, label_color = "white")
+# plot_usmap(data = state, values = "trustclimsciSST", labels = TRUE, label_color = "white")
+```
+```{r, fig.width = 6, fig.height = 4}
+library(forcats)
+library(reshape2)
+```
+
+```{r, fig.width = 6, fig.height = 4}
+# plot bar chart with descending discuss
+state_s <- 
+state %>%
+  select(all_of(c('state', 'discuss', 'mediaweekly', 'happening')))
+
+state_s <-
+state_s %>%
+  mutate(state = fct_reorder(state, desc(discuss)))
+
+# load the library
+library(forcats)
+
+# Reorder following the value of another column:
+statec <- melt(state_s[,c('state', 'discuss', 'happening')],id.vars = 1)
+
+ggplot(statec,aes(x = state,y = value)) + 
+    geom_bar(aes(fill = variable),stat = "identity",position = "dodge") +  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + xlab("State") + ylab("Estimated Percentage")
+```
+
+
+```{r}
+# Quick display of two cabapilities of GGally, to assess the distribution and correlation of variables
+library(GGally)
+```
+
+
+```{r, fig.width = 4.8, fig.height = 3.2}
+# correlation plot for state level data
+ggpairs(
+  data = state_f,
+  lower = list(continuous = "points", combo = "dot_no_facet")
+)
+```
+
+```{r, fig.width = 4.8, fig.height = 3.2}
+# correlation plot for county level data
+ggpairs(
+  data = county_f,
+  lower = list(continuous = "points", combo = "dot_no_facet")
+)
+```
+```
+
